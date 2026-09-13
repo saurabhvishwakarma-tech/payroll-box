@@ -54,9 +54,12 @@ com.payroll.Main        CLI entry point
 
 **Why checked exceptions instead of unchecked.** All four custom exceptions extend Exception, not RuntimeException, on purpose. That forces every caller to actually decide what to do about a duplicate id or an invalid salary, instead of letting it silently bubble up until something crashes. It's more ceremony than unchecked exceptions would be, but the ceremony is the point of this phase.
 
-## What's next (not built yet, on purpose)
+## Phase 6 (stretch)
 
-- **Repository<T>**: once generics are learned properly, WorkforceService's Map<Integer, Employee> is a natural thing to generalize.
-- **Threaded payroll simulation**: once concurrency is learned, calculating pay for different departments in parallel, plus a look at what actually needs synchronizing (the shared nextEmployeeId counter is the obvious candidate) and why.
+**com.payroll.service.Repository<T>** is a generic, in-memory store keyed by an integer id, built from a `Function<T, Integer>` that knows how to pull the id out of whatever T is. WorkforceService no longer stores employees itself, it holds a `Repository<Employee>` underneath and just translates a failed `add`/`remove`/`findById` into the same `DuplicateEmployeeIdException`/`EmployeeNotFoundException` as before. Every method signature on WorkforceService stayed the same, so nothing else in the project (Main, ReportingService, the CSV classes) needed to change at all.
 
-These are left out for now rather than added early "because it's good practice." The point of this project is that each part maps to something actually learned, not a checklist of patterns.
+**com.payroll.service.ParallelPayrollCalculator** calculates total pay per department using one thread per department instead of one after another, via ExecutorService, Callable and Future. Each thread only reads employee data and hands its own answer back through a Future, nothing is shared and written to by more than one thread at once, which is what makes this safe without any synchronized blocks. The comments on that class walk through what would actually need synchronizing if it were written differently (a shared results map written to directly by multiple threads, or Employee's static id counter if employees were ever created from more than one thread). Reachable from the CLI under Reports, option 8.
+
+## What's still not built (on purpose)
+
+Nothing major left from the original plan. Anything added from here on would be extending the project for its own sake, which is exactly what it's for.

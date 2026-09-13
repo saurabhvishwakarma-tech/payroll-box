@@ -12,6 +12,7 @@ import com.payroll.model.Employee;
 import com.payroll.model.EmployeeStatus;
 import com.payroll.model.Intern;
 import com.payroll.model.Manager;
+import com.payroll.service.ParallelPayrollCalculator;
 import com.payroll.service.ReportingService;
 import com.payroll.service.WorkforceService;
 
@@ -19,7 +20,9 @@ import java.io.IOException;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.List;
+import java.util.Map;
 import java.util.Scanner;
+import java.util.concurrent.ExecutionException;
 
 /** Scanner-based menu tying the whole thing together. */
 public class Main {
@@ -155,6 +158,7 @@ public class Main {
         System.out.println("5) Group by status");
         System.out.println("6) Group by tenure bracket");
         System.out.println("7) Top active earners (filter -> sort -> limit)");
+        System.out.println("8) Total pay by department (calculated in parallel, one thread per department)");
         System.out.print("Choose a report: ");
         String choice = scanner.nextLine().trim();
 
@@ -186,7 +190,21 @@ public class Main {
                 int n = readInt("How many? ");
                 reportingService.topActiveEarners(n).forEach(System.out::println);
             }
+            case "8" -> runParallelPayrollReport();
             default -> System.out.println("Not a valid report.");
+        }
+    }
+
+    private static void runParallelPayrollReport() {
+        try {
+            Map<Department, Double> totals = new ParallelPayrollCalculator()
+                    .calculateTotalPayByDepartment(workforceService);
+            totals.forEach((dept, total) -> System.out.printf("%-12s %,.2f%n", dept, total));
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            System.out.println("Calculation was interrupted before it finished.");
+        } catch (ExecutionException e) {
+            System.out.println("A department's calculation failed: " + e.getCause());
         }
     }
 
